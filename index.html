@@ -13,6 +13,8 @@
     --subtext: #555568;
     --accent: #4f46e5;
     --accent-hover: #4338ca;
+    --border: #d9d9e3;
+    --error: #c0392b;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -23,6 +25,8 @@
       --subtext: #b0b0c0;
       --accent: #6366f1;
       --accent-hover: #818cf8;
+      --border: #3a3a4a;
+      --error: #e57373;
     }
   }
 
@@ -79,13 +83,166 @@
   button:hover {
     background: var(--accent-hover);
   }
+
+  form {
+    text-align: left;
+    margin: 0 0 0.5rem;
+  }
+
+  label {
+    display: block;
+    font-size: 0.9rem;
+    margin: 0 0 1rem;
+  }
+
+  input {
+    display: block;
+    width: 100%;
+    margin-top: 0.35rem;
+    padding: 0.6rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  .auth-buttons {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .auth-buttons button {
+    flex: 1;
+  }
+
+  #signup-btn {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+
+  #signup-btn:hover {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  #auth-message {
+    min-height: 1.2rem;
+    font-size: 0.9rem;
+    color: var(--error);
+    margin: 1rem 0 0;
+  }
+
+  [hidden] {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
   <div class="card">
     <h1>YouHavePeople</h1>
-    <p>Welcome! Learning starts here — explore courses, track your progress, and grow at your own pace.</p>
-    <button type="button">Get Started</button>
+
+    <div id="auth-section">
+      <p>Welcome! Learning starts here — sign up or log in to get started.</p>
+      <form id="auth-form">
+        <label>
+          Email
+          <input type="email" id="email" required autocomplete="email">
+        </label>
+        <label>
+          Password
+          <input type="password" id="password" required minlength="6" autocomplete="current-password">
+        </label>
+        <div class="auth-buttons">
+          <button type="submit" id="login-btn">Log In</button>
+          <button type="button" id="signup-btn">Sign Up</button>
+        </div>
+        <p id="auth-message"></p>
+      </form>
+    </div>
+
+    <div id="app-section" hidden>
+      <p id="welcome-message"></p>
+      <button type="button" id="logout-btn">Log Out</button>
+    </div>
   </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
+    const supabaseUrl = 'https://fwdqyzwvjxqwccyhpeyg.supabase.co'
+    const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3ZHF5end2anhxd2NjeWhwZXlnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MTY3NDEsImV4cCI6MjEwMTA5Mjc0MX0.3aqMY09tbCcLWOHVW7oZzmy1nPIgHdO98bAyfTxGtww'
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+    const authSection = document.getElementById('auth-section')
+    const appSection = document.getElementById('app-section')
+    const authForm = document.getElementById('auth-form')
+    const signupBtn = document.getElementById('signup-btn')
+    const logoutBtn = document.getElementById('logout-btn')
+    const authMessage = document.getElementById('auth-message')
+    const welcomeMessage = document.getElementById('welcome-message')
+    const emailInput = document.getElementById('email')
+    const passwordInput = document.getElementById('password')
+
+    function showLoggedIn(session) {
+      authSection.hidden = true
+      appSection.hidden = false
+      welcomeMessage.textContent = `Welcome, ${session.user.email}!`
+    }
+
+    function showLoggedOut() {
+      authSection.hidden = false
+      appSection.hidden = true
+      authMessage.textContent = ''
+    }
+
+    function updateUI(session) {
+      if (session) {
+        showLoggedIn(session)
+      } else {
+        showLoggedOut()
+      }
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      updateUI(session)
+    })
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      updateUI(session)
+    })
+
+    authForm.addEventListener('submit', async (e) => {
+      e.preventDefault()
+      authMessage.textContent = ''
+      const { error } = await supabase.auth.signInWithPassword({
+        email: emailInput.value,
+        password: passwordInput.value,
+      })
+      if (error) {
+        authMessage.textContent = error.message
+      }
+    })
+
+    signupBtn.addEventListener('click', async () => {
+      authMessage.textContent = ''
+      const { error } = await supabase.auth.signUp({
+        email: emailInput.value,
+        password: passwordInput.value,
+      })
+      if (error) {
+        authMessage.textContent = error.message
+      } else {
+        authMessage.style.color = 'var(--accent)'
+        authMessage.textContent = 'Check your email to confirm your account.'
+      }
+    })
+
+    logoutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut()
+    })
+  </script>
 </body>
 </html>
